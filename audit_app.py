@@ -5,12 +5,12 @@ import json
 # ==========================================
 # 1. 填入你剛剛建立的「全新專案」API KEY
 # ==========================================
+# 讓程式自動去雲端後台抓取隱藏的金鑰
 if "GEMINI_KEY" in st.secrets:
     API_KEY = st.secrets["GEMINI_KEY"]
 else:
-    # 這裡保留你原本的 Key，方便你在私人電腦測試
-    API_KEY = "AIzaSyDeOXmbGpt-VXJ8sk1x7d2UJ3gvtIX1TsE" 
-# -----------------------
+    # 這裡可以留空或填入一個暫時的提示字串
+    API_KEY = "請在雲端設定中配置 API KEY" 
 
 st.set_page_config(page_title="AI 稽核專家", page_icon="🛡️")
 st.title("🛡️ AI 國際條文稽核專家 (自動相容版)")
