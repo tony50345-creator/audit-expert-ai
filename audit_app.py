@@ -5,7 +5,12 @@ import json
 # ==========================================
 # 1. 填入你剛剛建立的「全新專案」API KEY
 # ==========================================
-API_KEY = "AIzaSyDeOXmbGpt-VXJ8sk1x7d2UJ3gvtIX1TsE" 
+if "GEMINI_KEY" in st.secrets:
+    API_KEY = st.secrets["GEMINI_KEY"]
+else:
+    # 這裡保留你原本的 Key，方便你在私人電腦測試
+    API_KEY = "AIzaSyDeOXmbGpt-VXJ8sk1x7d2UJ3gvtIX1TsE" 
+# -----------------------
 
 st.set_page_config(page_title="AI 稽核專家", page_icon="🛡️")
 st.title("🛡️ AI 國際條文稽核專家 (自動相容版)")
