@@ -10,7 +10,7 @@ if "GEMINI_KEY" in st.secrets:
     API_KEY = st.secrets["GEMINI_KEY"] 
 else:
     # 本地測試時，直接把金鑰字串賦值給變數
-    API_KEY = "AIzaSyCGIzYkQkxQCUMJr2ips3_pFoWMz7Kk61U" # 建議僅供本地測試
+    API_KEY = "AIzaSyCIS2bXPy30kmPmq60D_BbBGCxQhX770qQ" # 建議僅供本地測試
 
 st.set_page_config(page_title="AI 稽核專家 V2", page_icon="🛡️", layout="wide")
 
