@@ -48,30 +48,28 @@ SYSTEM_PROMPT = """
 def analyze_audit_finding(finding):
     clean_key = API_KEY.strip()
     
-    # 修正：改用 v1 穩定版端點與正確的模型名稱格式
+    # 使用 v1 穩定版端點
     url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={clean_key}"
     
     instruction = f"""
-    你是一位日月光部門專用的稽核專家。請分析此事項："{finding}"
-    請嚴格回傳 JSON 格式：
+    請分析此稽核事項："{finding}"
+    請回傳精確的 JSON 格式 (不可有任何 markdown 標籤或引言)：
     {{
-      "professional_note": "稽核術語改寫後的筆記",
-      "category_id": "對標編號 (例如 A0105)",
-      "grade": "Major/Minor/OFI/Acceptable",
-      "classification": "不符合項分類",
-      "iso_9001": "ISO 條文及名稱",
-      "iatf_16949": "IATF 條文及名稱",
-      "vda_63": "VDA 6.3 條文及名稱"
+      "professional_note": "改寫後的專業稽核筆記",
+      "category_id": "最對標的 Category 編號",
+      "grade": "Acceptable/OFI/Minor/Major",
+      "classification": "不符合分類名稱",
+      "iso_9001": "ISO 9001 條號及名稱",
+      "iatf_16949": "IATF 16949 條號及名稱",
+      "vda_63": "VDA 6.3 條號及名稱"
     }}
     """
     
     payload = {
-        "contents": [{
-            "parts": [{"text": SYSTEM_PROMPT + "\n" + instruction}]
-        }],
+        "contents": [{"parts": [{"text": SYSTEM_PROMPT + "\n" + instruction}]}],
         "generationConfig": {
             "temperature": 0,
-            "response_mime_type": "application/json"  # 在 v1 穩定版中，1.5 模型也支援此功能
+            "responseMimeType": "application/json"  # 關鍵修正：這裡改為大寫 M 和 T
         }
     }
     
@@ -79,16 +77,16 @@ def analyze_audit_finding(finding):
         res = requests.post(url, json=payload, timeout=30)
         
         if res.status_code == 200:
-            # 解析 AI 回傳的 JSON 字串
-            return json.loads(res.json()['candidates'][0]['content']['parts'][0]['text'])
+            # 取得 AI 回傳的純 JSON 字串
+            raw_text = res.json()['candidates'][0]['content']['parts'][0]['text']
+            return json.loads(raw_text)
         else:
-            # 若失敗，抓出具體原因
-            error_data = res.json()
-            error_msg = error_data.get('error', {}).get('message', '未知錯誤')
-            return f"❌ 連線失敗 (代碼 {res.status_code})\n原因：{error_msg}"
+            # 顯示具體的 API 錯誤原因，方便後續稽核
+            error_msg = res.json().get('error', {}).get('message', '未知錯誤')
+            return f"❌ API 報錯 ({res.status_code}): {error_msg}"
             
     except Exception as e:
-        return f"❌ 系統異常: {str(e)}"
+        return f"❌ 連線異常: {str(e)}"
 
 # ==========================================
 # 4. 網頁介面
