@@ -3,65 +3,70 @@ import requests
 import json
 
 # ==========================================
-# 1. 核心設定：讀取金鑰 (支援雲端 Secrets & 本地)
+# 1. 核心設定：金鑰管理
 # ==========================================
+# 優先讀取雲端 Secrets，沒有則讀取 else 區塊
 if "GEMINI_KEY" in st.secrets:
-    # 這裡括號裡面要填的是「標籤名稱」，不是金鑰本身
-    API_KEY = st.secrets["GEMINI_KEY"] 
+    RAW_KEY = st.secrets["GEMINI_KEY"]
 else:
-    # 本地測試時，直接把金鑰字串賦值給變數
-    API_KEY = "AIzaSyCIS2bXPy30kmPmq60D_BbBGCxQhX770qQ" # 建議僅供本地測試
+    # [請在此貼上您的最新 API Key]
+    RAW_KEY = "AIzaSyCIS2bXPy30kmPmq60D_BbBGCxQhX770qQ" 
+
+# 清除可能誤貼的空格，避免 404 錯誤
+API_KEY = RAW_KEY.strip()
 
 st.set_page_config(page_title="AI 稽核專家 V2", page_icon="🛡️", layout="wide")
 
 # ==========================================
-# 2. 定義專業 System Prompt (核心邏輯)
+# 2. 定義專業 System Prompt (核心邏輯庫)
 # ==========================================
 SYSTEM_PROMPT = """
-你是一位專精於 ASE 半導體封測與車用電子供應鏈的稽核大師。
+你是一位專精於半導體封測與車用電子供應鏈的稽核大師，工作背景為 ASE 日月光。
 你的任務是將「稽核紀錄事項」轉化為專業的 7 欄式稽核報告。
 
-### 判定準則 (必須嚴格遵守)：
-1. 缺失等級定義：
-   - Acceptable: 通過沒問題。
-   - OFI: 觀察項，非缺失但建議改善。
-   - Minor: 規範與執行不符，但不直接影響產品品質。
-   - Major: 嚴重違反 IATF/ISO 條文、未告知客戶變更、影響產品品質/可靠度、違反客戶特殊要求、或 VDA 6.3 星號提問為 0/4 分。
+### 判定準則：
+1. 缺失等級：
+   - Acceptable: 通過。
+   - OFI: 觀察項，建議改善。
+   - Minor: 規範與執行不符，不直接影響品質。
+   - Major: 嚴重違反條文、未告知客戶變更、影響產品可靠度、或 VDA 6.3 星號提問 0/4 分。
+2. 版本鎖定：ISO 9001:2015, IATF 16949:2016, VDA 6.3:2023。
+3. 術語要求：必須使用專業、客觀的稽核術語。
 
-2. 最新版本鎖定：
-   - ISO 9001: 2015
-   - IATF 16949: 2016
-   - VDA 6.3: 2023 (聚焦 P2~P7)
-
-3. 專業術語：採用簡明扼要、客觀陳述。
-
-### Category Check Item 比對表 (僅列舉核心類別)：
-(AI 必須根據用戶輸入，從 Man/Machine/Material/Method/Environment/Other 中找出最符合的 Category ID，如 A0105, A0301 等)
+### 參考 Category Check Item 分類 (核心類別)：
+- Man (A01xx): 訓練、認證、教育訓練。
+- Machine (A02xx-A06xx, A26xx): 設備驗收、PM、治具、校正、MSA、車用專機。
+- Material (A07xx-A08xx): 防護、儲存、識別、追溯。
+- Method (A09xx-A17xx): 管制計劃、SPC、不合格品處理、客訴、FMEA、文控、變更管制。
+- Environment (A18xx-A23xx): 環境監控、無塵室、5S、ESD、GP(綠色產品)、安全。
+- Other (A24xx-A25xx): 安全產品(Soteria)、ULA專線。
 """
 
 # ==========================================
-# 3. 核心功能函數
+# 3. 核心功能函式 (這裡就是你找不到的那段)
 # ==========================================
 def analyze_audit_finding(finding):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+    # 使用穩定版 v1 接口
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
     
-    # 強制要求 JSON 格式輸出，確保排版不會亂掉
     instruction = f"""
-    請針對以下稽核發現進行分析："{finding}"
-    請回傳 JSON 格式，包含以下鍵值：
-    - professional_note: 專業稽核筆記
-    - category_id: Category Check Item 編號 (如 A01xx)
-    - grade: 缺失等級 (Acceptable/OFI/Minor/Major)
-    - classification: 不符合分類
-    - iso_9001: 對應條文編號與名稱
-    - iatf_16949: 對應條文編號與名稱
-    - vda_63: 對應 P2~P7 條目與名稱
+    請分析此稽核事項："{finding}"
+    請回傳精確的 JSON 格式 (不可有引言)：
+    {{
+      "professional_note": "改寫後的專業稽核筆記",
+      "category_id": "最對標的 Category 編號 (例如 A0105)",
+      "grade": "Acceptable/OFI/Minor/Major",
+      "classification": "不符合分類名稱",
+      "iso_9001": "ISO 9001 條號及名稱",
+      "iatf_16949": "IATF 16949 條號及名稱",
+      "vda_63": "VDA 6.3 條號(P2-P7)及名稱"
+    }}
     """
     
     payload = {
         "contents": [{"parts": [{"text": SYSTEM_PROMPT + "\n" + instruction}]}],
         "generationConfig": {
-            "temperature": 0, # 鎖定答案一致性
+            "temperature": 0, 
             "response_mime_type": "application/json"
         }
     }
@@ -71,31 +76,30 @@ def analyze_audit_finding(finding):
         if res.status_code == 200:
             return json.loads(res.json()['candidates'][0]['content']['parts'][0]['text'])
         else:
-            return f"Error: {res.status_code}"
+            return f"連線失敗 (代碼 {res.status_code}): {res.text}"
     except Exception as e:
         return f"連線異常: {str(e)}"
 
 # ==========================================
-# 4. 網頁介面佈局
+# 4. 網頁介面
 # ==========================================
-st.title("🛡️ AI 國際條文稽核儀表板 (部門專用版)")
-st.caption("支援 IATF 16949, ISO 9001:2015, VDA 6.3:2023 最新版分析")
+st.title("🛡️ AI 國際條文稽核儀表板 (日月光部門專用)")
+st.caption("同步對應 IATF 16949 / ISO 9001 / VDA 6.3 (2026 最新版)")
 
-# 輸入區
-user_input = st.text_area("✍️ 請輸入稽核紀錄事項：", placeholder="例如：員工 K10748 於 2026/03/03 取得綠色產品認證...", height=150)
+user_input = st.text_area("✍️ 請輸入稽核紀錄事項：", placeholder="例如：發現設備 A123 上的校正標籤已過期...", height=150)
 
 if st.button("🚀 開始智慧分析"):
     if not user_input:
         st.warning("請先輸入紀錄內容")
     else:
-        with st.spinner("正在對標國際條文並進行風險判定..."):
+        with st.spinner("正在對標 Category Check Items 並進行條文判定..."):
             result = analyze_audit_finding(user_input)
             
             if isinstance(result, dict):
                 st.divider()
                 st.subheader("💡 專家分析報告")
                 
-                # 第一行：專業筆記與分類
+                # 第一行：核心判定
                 col1, col2, col3 = st.columns([3, 1, 1])
                 with col1:
                     st.info("**專業稽核筆記**")
@@ -104,14 +108,14 @@ if st.button("🚀 開始智慧分析"):
                     st.info("**Category ID**")
                     st.code(result.get('category_id'))
                 with col3:
-                    grade = result.get('grade')
+                    grade = result.get('grade', 'Acceptable')
                     st.info("**缺失等級**")
-                    # 自動變色邏輯
                     if "Major" in grade: st.error(grade)
                     elif "Minor" in grade: st.warning(grade)
+                    elif "OFI" in grade: st.info(grade)
                     else: st.success(grade)
 
-                # 第二行：條文對照
+                # 第二行：法規對照
                 st.divider()
                 c1, c2, c3, c4 = st.columns(4)
                 with c1:
@@ -129,6 +133,5 @@ if st.button("🚀 開始智慧分析"):
             else:
                 st.error(result)
 
-# 頁尾說明
 st.divider()
-st.caption("⚠️ 本工具僅供稽核參考，最終判定請依公司內部規範與稽核員專業判斷為準。")
+st.caption("⚠️ 本工具由 AI 輔助生成，最終稽核判定請以專業稽核員與公司規範為準。")
