@@ -3,20 +3,16 @@ import requests
 import json
 
 # ==========================================
-# 1. 核心設定：金鑰管理 (防止本地測試報錯)
+# 1. 核心設定：金鑰管理 (修正本地端報錯問題)
 # ==========================================
+# 我們用最安全的 try...except，保證在私人電腦絕對不會崩潰
 try:
-    if "GEMINI_KEY" in st.secrets:
-        RAW_KEY = st.secrets["GEMINI_KEY"]
-    else:
-        # [本地測試用] 請在下方雙引號內貼上你的 AIza... 金鑰
-        RAW_KEY = "AIzaSyCIS2bXPy30kmPmq60D_BbBGCxQhX770qQ" 
+    # 先嘗試抓雲端保險箱的 Key
+    API_KEY = st.secrets["GEMINI_KEY"]
 except Exception:
-    # 當在私人電腦執行且找不到 secrets 檔案時，會改用這裡
-    RAW_KEY = "AIzaSyCIS2bXPy30kmPmq60D_BbBGCxQhX770qQ"
-
-# 清除隱形空格
-API_KEY = RAW_KEY.strip()
+    # 如果是在你的私人電腦跑，抓不到保險箱時，就用下面這一行
+    # 請在引號內填入你最新的 AIza... 金鑰 @
+    API_KEY = "AIzaSyCIS2bXPy30kmPmq60D_BbBGCxQhX770qQ"
 
 st.set_page_config(page_title="AI 稽核專家 V2", page_icon="🛡️", layout="wide")
 
@@ -30,7 +26,7 @@ SYSTEM_PROMPT = """
 ### 判定標準：
 1. 缺失等級：Major (嚴重)、Minor (輕微)、OFI (建議改善)、Acceptable (符合)。
 2. 標準版本：ISO 9001:2015, IATF 16949:2016, VDA 6.3:2023。
-3. 分類參考 (Category Check Items)：
+3. 分類參考：
    - Man (A01xx): 訓練與認證。
    - Machine (A02xx-A06xx, A26xx): 設備、PM、校正、車用專機。
    - Material (A07xx-A08xx): 儲存、追溯。
@@ -39,15 +35,16 @@ SYSTEM_PROMPT = """
 """
 
 # ==========================================
-# 3. API 連線功能 (支援 JSON 模式)
+# 3. API 連線功能 (修正 400 命名問題)
 # ==========================================
 def analyze_audit_finding(finding):
+    clean_key = API_KEY.strip()
     # 使用 v1 穩定版網址
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={clean_key}"
     
     instruction = f"""
     分析此事項："{finding}"
-    請嚴格回傳 JSON 格式 (不可有 Markdown 標籤)：
+    請嚴格回傳 JSON 格式 (不可有任何 Markdown 標籤)：
     {{
       "professional_note": "專業術語改寫後的筆記",
       "category_id": "對標編號 (如 A0105)",
@@ -84,7 +81,6 @@ def analyze_audit_finding(finding):
 st.title("🛡️ AI 國際條文稽核儀表板")
 st.caption("日月光部門專用 - 同步對標 IATF 16949 / ISO 9001 / VDA 6.3")
 
-# 稽核輸入區
 user_input = st.text_area("✍️ 請輸入稽核紀錄事項：", placeholder="例如：設備校正標籤過期、員工認證失效...", height=120)
 
 if st.button("🚀 開始智慧分析"):
@@ -98,7 +94,6 @@ if st.button("🚀 開始智慧分析"):
                 st.divider()
                 st.subheader("💡 專家分析報告")
                 
-                # 上排：核心分析
                 c1, c2, c3 = st.columns([3, 1, 1])
                 with c1:
                     st.info("**專業稽核筆記**")
@@ -113,7 +108,6 @@ if st.button("🚀 開始智慧分析"):
                     elif "Minor" in grade: st.warning(grade)
                     else: st.success(grade)
 
-                # 下排：條文對照
                 st.divider()
                 f1, f2, f3, f4 = st.columns(4)
                 with f1:
