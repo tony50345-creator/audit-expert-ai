@@ -1,53 +1,38 @@
 import streamlit as st
 import requests
 import json
-import os
 
 # ==========================================
-# 1. 核心設定：金鑰管理 (防撞牆加強版)
+# 1. 核心設定：金鑰管理 (私人電腦直接定義版)
 # ==========================================
-def get_api_key():
-    # 做法：先嘗試去抓雲端保險箱，失敗了就用下面這串
-    try:
-        # 這裡會檢查有沒有 secrets 檔案
-        if "GEMINI_KEY" in st.secrets:
-            return st.secrets["GEMINI_KEY"]
-    except Exception:
-        # 如果找不到保險箱檔案，會跳到這裡執行
-        pass
-    
-    # --- [本地測試用] 請在下方 @ 雙引號內貼上你的 AIza... 金鑰 ---
-    return "AIzaSyCIS2bXPy30kmPmq60D_BbBGCxQhX770qQ"
+# 浩均大大，請直接在這裡貼上你的 AIza... 金鑰 @
+API_KEY = "AIzaSyCIS2bXPy30kmPmq60D_BbBGCxQhX770qQ"
 
-# 取得最終使用的金鑰並清除空格
-API_KEY = get_api_key().strip()
-
-st.set_page_config(page_title="AI 稽核專家 V2", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="AI 國際條文稽核儀表板", page_icon="🛡️", layout="wide")
 
 # ==========================================
-# 2. 專業稽核邏輯定義 (System Prompt)
+# 2. 專業稽核邏輯 (日月光封測與車用標準)
 # ==========================================
+# 鎖定 IATF 16949 與 VDA 6.3 邏輯
 SYSTEM_PROMPT = """
-你是一位專精於半導體封測與車用電子供應鏈的稽核大師，背景為 ASE 日月光。
+你是一位專精於半導體封測與車用電子供應鏈的稽核大師。
 請將「稽核紀錄」轉化為專業、簡明、客觀的 7 欄式稽核報告。
-
-### 判定標準：
-1. 缺失等級：Major (嚴重)、Minor (輕微)、OFI (建議改善)、Acceptable (符合)。
-2. 標準版本：ISO 9001:2015, IATF 16949:2016, VDA 6.3:2023。
+版本要求：ISO 9001:2015, IATF 16949:2016, VDA 6.3:2023。
 """
 
 # ==========================================
-# 3. API 連線功能 (JSON 模式)
+# 3. API 連線功能 (穩定版 v1)
 # ==========================================
 def analyze_audit_finding(finding):
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
+    clean_key = API_KEY.strip()
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={clean_key}"
     
     instruction = f"""
-    分析此事項："{finding}"
-    請嚴格回傳 JSON 格式 (不可有引言或 Markdown)：
+    分析此稽核事項："{finding}"
+    請回傳精確 JSON (不可有 Markdown 標籤)：
     {{
       "professional_note": "專業術語筆記",
-      "category_id": "編號 (如 A0105)",
+      "category_id": "對標編號 (如 A0105)",
       "grade": "Major/Minor/OFI/Acceptable",
       "classification": "不符合分類",
       "iso_9001": "ISO 條文",
@@ -70,24 +55,23 @@ def analyze_audit_finding(finding):
             content = res.json()['candidates'][0]['content']['parts'][0]['text']
             return json.loads(content)
         else:
-            error_msg = res.json().get('error', {}).get('message', '未知錯誤')
-            return f"❌ API 錯誤: {error_msg} (代碼: {res.status_code})"
+            return f"❌ API 報錯 ({res.status_code}): {res.json().get('error', {}).get('message', '未知錯誤')}"
     except Exception as e:
-        return f"❌ 系統連線異常: {str(e)}"
+        return f"❌ 系統異常: {str(e)}"
 
 # ==========================================
 # 4. 網頁介面 UI
 # ==========================================
 st.title("🛡️ AI 國際條文稽核儀表板")
-st.caption("日月光部門專用 - 同步對標 IATF 16949 / ISO 9001 / VDA 6.3")
+st.caption("日月光 Nanzih 廠部門專用 - 同步對標 IATF 16949 / VDA 6.3")
 
 user_input = st.text_area("✍️ 請輸入稽核紀錄事項：", placeholder="例如：設備校正標籤已過期...", height=120)
 
 if st.button("🚀 開始智慧分析"):
-    if not user_input:
-        st.warning("請先輸入內容")
+    if not user_input or API_KEY == "這裡貼上你的最新API_KEY":
+        st.warning("請輸入稽核內容並確保 API Key 已正確填寫。")
     else:
-        with st.spinner("正在對標資料庫..."):
+        with st.spinner("正在對標 200+ Category Check Items..."):
             result = analyze_audit_finding(user_input)
             
             if isinstance(result, dict):
