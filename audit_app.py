@@ -6,8 +6,10 @@ import json
 # 1. 核心設定：讀取金鑰 (支援雲端 Secrets & 本地)
 # ==========================================
 if "GEMINI_KEY" in st.secrets:
-    API_KEY = st.secrets["AIzaSyCGIzYkQkxQCUMJr2ips3_pFoWMz7Kk61U"]
+    # 這裡括號裡面要填的是「標籤名稱」，不是金鑰本身
+    API_KEY = st.secrets["GEMINI_KEY"] 
 else:
+    # 本地測試時，直接把金鑰字串賦值給變數
     API_KEY = "AIzaSyCGIzYkQkxQCUMJr2ips3_pFoWMz7Kk61U" # 建議僅供本地測試
 
 st.set_page_config(page_title="AI 稽核專家 V2", page_icon="🛡️", layout="wide")
