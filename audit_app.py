@@ -3,12 +3,13 @@ import requests
 import json
 
 # ==========================================
-# 1. 核心設定：金鑰管理 (私人電腦直接定義版)
+# 1. 核心設定：金鑰管理 (私人電腦專用版)
 # ==========================================
 # 浩均大大，請直接在這裡貼上你的 AIza... 金鑰 @
 API_KEY = "AIzaSyCIS2bXPy30kmPmq60D_BbBGCxQhX770qQ"
 
-st.set_page_config(page_title="AI 國際條文稽核儀表板", page_icon="🛡️", layout="wide")
+# 設定網頁標題
+st.set_page_config(page_title="AI 稽核專家 V2", page_icon="🛡️", layout="wide")
 
 # ==========================================
 # 2. 專業稽核邏輯 (日月光封測與車用標準)
@@ -21,9 +22,10 @@ SYSTEM_PROMPT = """
 """
 
 # ==========================================
-# 3. API 連線功能 (穩定版 v1)
+# 3. API 連線功能 (使用穩定版 v1)
 # ==========================================
 def analyze_audit_finding(finding):
+    # 確保金鑰沒有隱形空格
     clean_key = API_KEY.strip()
     url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={clean_key}"
     
@@ -78,6 +80,7 @@ if st.button("🚀 開始智慧分析"):
                 st.divider()
                 st.subheader("💡 專家分析報告")
                 
+                # 上排核心結果
                 c1, c2, c3 = st.columns([3, 1, 1])
                 with c1:
                     st.info("**專業稽核筆記**")
@@ -89,6 +92,7 @@ if st.button("🚀 開始智慧分析"):
                     st.info("**缺失等級**")
                     st.write(result.get('grade'))
 
+                # 下排條文對比
                 st.divider()
                 f1, f2, f3, f4 = st.columns(4)
                 with f1: st.write("**不符合分類**\n", result.get('classification'))
